@@ -13,11 +13,12 @@ from typing import List, Optional, Annotated
 import bcrypt
 import jwt
 import resend
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ReturnDocument
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -624,6 +625,33 @@ async def list_bookmarks(user: User = Depends(require_user)):
 
 
 # ---------------------- Routes: AI ----------------------
+# MongoDB-backed rate limiter (works across replicas; resets per minute/day bucket).
+async def _check_ai_rate(key: str, max_per_minute: int = 8, max_per_day: int = 80) -> None:
+    """Raise HTTPException 429 if caller exceeds AI usage limits."""
+    now = datetime.now(timezone.utc)
+    minute_bucket = now.strftime("%Y%m%d%H%M")
+    day_bucket = now.strftime("%Y%m%d")
+    minute_id = f"{key}:m:{minute_bucket}"
+    day_id = f"{key}:d:{day_bucket}"
+    # Atomic increment + read
+    minute_doc = await db.ai_rate.find_one_and_update(
+        {"_id": minute_id},
+        {"$inc": {"count": 1}, "$setOnInsert": {"expires_at": now + timedelta(minutes=2)}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    day_doc = await db.ai_rate.find_one_and_update(
+        {"_id": day_id},
+        {"$inc": {"count": 1}, "$setOnInsert": {"expires_at": now + timedelta(days=2)}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    if minute_doc and minute_doc.get("count", 0) > max_per_minute:
+        raise HTTPException(status_code=429, detail="Too many AI requests — please wait a minute.")
+    if day_doc and day_doc.get("count", 0) > max_per_day:
+        raise HTTPException(status_code=429, detail="Daily AI limit reached. Try again tomorrow.")
+
+
 async def _get_llm_chat(session_id: str, system_msg: str) -> LlmChat:
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="LLM key not configured")
@@ -635,7 +663,16 @@ async def _get_llm_chat(session_id: str, system_msg: str) -> LlmChat:
 
 
 @api_router.post("/ai/explain")
-async def ai_explain(req: ExplainReq):
+async def ai_explain(req: ExplainReq, request: Request, user: Optional[User] = Depends(get_current_user)):
+    # Rate limit per-user (tighter when anon, looser when logged in)
+    if user:
+        await _check_ai_rate(f"user:{user.id}", max_per_minute=10, max_per_day=200)
+    else:
+        # Prefer real client IP from forwarded headers (we sit behind ingress)
+        fwd = request.headers.get("x-forwarded-for", "")
+        ip = fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "anon")
+        await _check_ai_rate(f"ip:{ip}", max_per_minute=4, max_per_day=20)
+
     q = await db.questions.find_one({"id": req.question_id}, {"_id": 0})
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -661,7 +698,8 @@ async def ai_explain(req: ExplainReq):
 
 
 @api_router.post("/ai/generate")
-async def ai_generate(req: GenerateReq, _: User = Depends(require_user)):
+async def ai_generate(req: GenerateReq, user: User = Depends(require_user)):
+    await _check_ai_rate(f"gen:{user.id}", max_per_minute=2, max_per_day=15)
     count = max(1, min(req.count, 10))
     prompt = (
         f"GPSC (ગુજરાત જાહેર સેવા આયોગ) પરીક્ષાની તૈયારી માટે ગુજરાતી ભાષામાં "
@@ -1148,6 +1186,7 @@ async def startup():
     await db.bookmarks.create_index([("user_id", 1), ("question_id", 1)], unique=True)
     await db.daily_pins.create_index("date", unique=True)
     await db.daily_attempts.create_index([("user_id", 1), ("date", 1)], unique=True)
+    await db.ai_rate.create_index("expires_at", expireAfterSeconds=0)
 
     # Seed admin
     admin_doc = await db.users.find_one({"email": SEED_ADMIN_EMAIL})

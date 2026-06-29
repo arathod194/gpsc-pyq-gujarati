@@ -1,7 +1,7 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Timer, BookOpen, Award, Brain, Bookmark } from "lucide-react";
+import { ArrowRight, Sparkles, Timer, BookOpen, Award, Brain, Bookmark, Search } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 import usePageTitle from "@/lib/usePageTitle";
 
@@ -57,6 +57,14 @@ const accentBg = {
 
 export default function Landing() {
   usePageTitle("GPSC Previous Year Questions in Gujarati", { suffix: false });
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  const goSearch = (e) => {
+    e.preventDefault();
+    const term = q.trim();
+    if (term) navigate(`/browse?q=${encodeURIComponent(term)}`);
+    else navigate("/browse");
+  };
   return (
     <div className="page-enter">
       {/* Hero */}
@@ -74,6 +82,44 @@ export default function Landing() {
             <p className="mt-6 text-lg text-gray-600 max-w-xl leading-relaxed font-gujarati">
               એક જ જગ્યાએ વર્ષોની GPSC પ્રશ્નપત્રિકા. પ્રેક્ટિસ કરો, મોક ટેસ્ટ આપો, અને AI દ્વારા દરેક જવાબની વિગતવાર સમજૂતી મેળવો.
             </p>
+
+            {/* Inline search — top-of-funnel */}
+            <form onSubmit={goSearch} className="mt-6 max-w-xl">
+              <div className="relative flex items-center bg-white border border-gray-200 rounded-lg pl-3 pr-1 py-1 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-colors">
+                <Search className="h-4 w-4 text-gray-400 shrink-0" />
+                <input
+                  type="text"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search: ઇતિહાસ, બંધારણ, GPSC 2023…"
+                  className="flex-1 px-3 py-2 outline-none text-sm bg-transparent font-gujarati"
+                  data-testid="hero-search-input"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 btn-lift shrink-0"
+                  data-testid="hero-search-btn"
+                >
+                  Search
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="text-gray-500">Popular:</span>
+                {["ઇતિહાસ", "બંધારણ", "ભૂગોળ", "વિજ્ઞાન"].map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => navigate(`/browse?q=${encodeURIComponent(tag)}`)}
+                    className="text-blue-600 hover:underline font-gujarati"
+                    data-testid={`hero-chip-${tag}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </form>
+
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/practice">
                 <Button size="lg" className="bg-blue-600 hover:bg-blue-700 btn-lift" data-testid="hero-start-practice">

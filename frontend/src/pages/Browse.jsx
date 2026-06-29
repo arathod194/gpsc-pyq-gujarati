@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,11 +20,12 @@ const ALL = "__all__";
 export default function Browse() {
   usePageTitle("Browse PYQs");
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState({ exams: [], years: [], subjects: [] });
   const [exam, setExam] = useState(ALL);
   const [year, setYear] = useState(ALL);
   const [subject, setSubject] = useState(ALL);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(searchParams.get("q") || "");
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
 
