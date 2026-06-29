@@ -590,6 +590,34 @@ async def user_stats(user: User = Depends(require_user)):
     }
 
 
+@api_router.get("/me/streak-calendar")
+async def streak_calendar(days: int = 60, user: User = Depends(require_user)):
+    """Returns a heatmap of daily-question activity for the last N days."""
+    days = max(7, min(days, 180))
+    today = datetime.now(timezone.utc).date()
+    since = today - timedelta(days=days - 1)
+    rows = await db.daily_attempts.find(
+        {"user_id": user.id, "date": {"$gte": since.strftime("%Y-%m-%d")}},
+        {"_id": 0, "date": 1, "correct": 1},
+    ).to_list(days)
+    by_date = {r["date"]: bool(r.get("correct")) for r in rows}
+    cells = []
+    for i in range(days):
+        d = since + timedelta(days=i)
+        key = d.strftime("%Y-%m-%d")
+        cells.append({
+            "date": key,
+            "answered": key in by_date,
+            "correct": by_date.get(key, False),
+        })
+    return {
+        "days": days,
+        "cells": cells,
+        "current_streak": user.current_streak,
+        "longest_streak": user.longest_streak,
+    }
+
+
 @api_router.get("/me/next-step")
 async def next_step(user: User = Depends(require_user)):
     """
