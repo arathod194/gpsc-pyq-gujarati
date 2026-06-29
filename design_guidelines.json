@@ -1,0 +1,103 @@
+{
+  "theme": "Light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "emotional_tone": "Focused, authoritative, clear, and encouraging. Optimized for study and concentration without unnecessary distractions.",
+  "typography": {
+    "font_families": {
+      "heading": "'Outfit', sans-serif",
+      "body": "'Outfit', sans-serif",
+      "gujarati_content": "'Hind Vadodara', sans-serif",
+      "mono": "'JetBrains Mono', monospace"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight font-bold",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-semibold",
+      "h3": "text-xl sm:text-2xl font-medium",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-gray-500",
+      "gujarati_question": "text-xl sm:text-2xl font-medium leading-relaxed font-['Hind_Vadodara']",
+      "gujarati_option": "text-lg leading-relaxed font-['Hind_Vadodara']"
+    },
+    "imports": [
+      "@import url('https://fonts.googleapis.com/css2?family=Hind+Vadodara:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');"
+    ]
+  },
+  "colors": {
+    "background": "#F9FAFB",
+    "surface": "#FFFFFF",
+    "primary": "#2563EB",
+    "primary_hover": "#1D4ED8",
+    "accent": "#F59E0B",
+    "text_primary": "#111827",
+    "text_secondary": "#4B5563",
+    "text_tertiary": "#9CA3AF",
+    "border": "#E5E7EB",
+    "border_focus": "#93C5FD",
+    "success": {
+      "bg": "#ECFDF5",
+      "text": "#065F46",
+      "border": "#10B981"
+    },
+    "error": {
+      "bg": "#FEF2F2",
+      "text": "#991B1B",
+      "border": "#EF4444"
+    },
+    "neutral_selection": {
+      "bg": "#EFF6FF",
+      "border": "#60A5FA"
+    }
+  },
+  "spacing_and_layout": {
+    "general": "Generous spacing. Use p-6, p-8, or p-12 for major containers.",
+    "grid_modes": {
+      "dashboard": "Control Room Grid (Dense). Base: grid-cols-1 md:grid-cols-3 lg:grid-cols-4. Tight gap (gap-4 or gap-6).",
+      "landing_bento": "Tetris Grid. Base: grid-cols-1 md:grid-cols-8 lg:grid-cols-12. Wide gap (gap-8)."
+    },
+    "mcq_interface": "Use a clear split or central focus. Options should be stacked vertically with ample padding (p-4) and 1px border. Do not center text; left-align all question and option text.",
+    "alignment": "Left-align paragraphs, inputs, and list items. Center hero headings only if visually balanced."
+  },
+  "surfaces_and_micro_themes": {
+    "cards": "Grid Borders (Technical Look). 1px solid border (#E5E7EB), flat background, no shadow by default. Hover: slight shadow (shadow-sm) and border color darkens.",
+    "mcq_options": "Neumorphic / Crisp. 1px solid border (#E5E7EB). On hover: border becomes #93C5FD. On selected (before submit): neutral_selection style. On Correct: success style. On Wrong: error style.",
+    "header": "Crystal Glass. bg-white/80 backdrop-blur-xl with a 1px delicate bottom border (border-gray-200)."
+  },
+  "components": {
+    "strategy": "Shadcn UI for logic (Dropdowns, Dialogs, Progress), pure HTML/Tailwind for creative landing grids and MCQ structures.",
+    "buttons": "Sharp edges or minimal rounded (rounded-md). High contrast primary buttons (bg-blue-600 text-white hover:bg-blue-700).",
+    "inputs": "Shadcn inputs heavily customized to have 1px crisp borders, focus-visible:ring-2 focus-visible:ring-blue-500."
+  },
+  "motion_and_interaction": {
+    "hover_states": "All interactive elements must change state on hover. Buttons lift (-translate-y-[1px]) and deepen in color.",
+    "mcq_reveal": "Use staggered fade-in for AI explanations. The correct/wrong color transition on options should be snappy (duration-150 ease-out).",
+    "page_transitions": "Subtle opacity fade and slide-up (translate-y-2 to 0) on mount."
+  },
+  "icons_and_assets": {
+    "library": "lucide-react",
+    "usage": "Use icons for clear signposting (Timer, Bookmarks, Results, Dashboard widgets).",
+    "media": {
+      "hero_image": {
+        "url": "https://images.pexels.com/photos/8085257/pexels-photo-8085257.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Woman working late at a desk filled with books, representing focused study and preparation."
+      },
+      "dashboard_empty_state": {
+        "url": "https://images.pexels.com/photos/9158720/pexels-photo-9158720.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Young man studying indoors, focused on reading. Good for empty states or profile defaults."
+      }
+    }
+  },
+  "accessibility": {
+    "contrast": "Ensure minimum 4.5:1 ratio for normal text. Text primary (#111827) on surface (#FFFFFF) is highly accessible.",
+    "test_ids": "All interactive elements MUST include data-testid attributes (e.g., data-testid='mcq-option-a', data-testid='submit-exam-button').",
+    "focus_rings": "Explicit focus rings on all keyboard navigation elements (focus-visible:ring-2)."
+  },
+  "instructions_to_main_agent": [
+    "Import 'Hind Vadodara', 'Outfit', and 'JetBrains Mono' from Google Fonts in index.css.",
+    "Use 'Outfit' for UI shells, nav, and generic text. Use 'Hind Vadodara' strictly for Gujarati questions, options, and AI explanations.",
+    "Implement the Dashboard using a dense 'Control Room' grid.",
+    "For MCQ practice, do not use Shadcn Cards. Use raw divs with flat borders and distinct correct/wrong visual states.",
+    "Ensure 'AI Explanation' sections stand out slightly using an 'organic' or subtle background tint (like bg-blue-50/50 with a left blue border).",
+    "Remember to implement the Timer using 'JetBrains Mono' for monospace tabular numbers."
+  ]
+}
