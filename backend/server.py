@@ -1314,6 +1314,34 @@ async def root():
     return {"message": "GPSC Gujarat PYQ API", "version": "1.0"}
 
 
+@api_router.get("/stats/public")
+async def public_stats():
+    """Public, anonymous stats for landing-page social proof. No PII."""
+    now = datetime.now(timezone.utc)
+    week_ago = (now - timedelta(days=7)).isoformat()
+    total_questions = await db.questions.count_documents({})
+    total_users = await db.users.count_documents({"role": "user"})
+    # Sum attempts and total answered questions in last 7 days
+    pipeline = [
+        {"$match": {"completed_at": {"$gte": week_ago}}},
+        {"$group": {"_id": None, "attempts": {"$sum": 1}, "answered": {"$sum": "$total"}, "correct": {"$sum": "$score"}}},
+    ]
+    agg = await db.attempts.aggregate(pipeline).to_list(1)
+    weekly = agg[0] if agg else {"attempts": 0, "answered": 0, "correct": 0}
+    # Distinct exams + years
+    years = await db.questions.distinct("year")
+    exams = await db.questions.distinct("exam")
+    return {
+        "total_questions": total_questions,
+        "total_users": total_users,
+        "weekly_attempts": weekly.get("attempts", 0),
+        "weekly_questions_answered": weekly.get("answered", 0),
+        "weekly_correct": weekly.get("correct", 0),
+        "exam_count": len(exams),
+        "year_range": [min(years), max(years)] if years else None,
+    }
+
+
 @api_router.get("/sitemap.xml")
 async def sitemap():
     """Dynamic sitemap for SEO. Includes static routes + all question detail pages."""

@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Timer, BookOpen, Award, Brain, Bookmark, Search } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 import usePageTitle from "@/lib/usePageTitle";
+import api from "@/lib/api";
 
 const HERO_IMG = "https://images.pexels.com/photos/8085257/pexels-photo-8085257.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940";
 
@@ -59,6 +60,10 @@ export default function Landing() {
   usePageTitle("GPSC Previous Year Questions in Gujarati", { suffix: false });
   const navigate = useNavigate();
   const [q, setQ] = useState("");
+  const [pstats, setPstats] = useState(null);
+  useEffect(() => {
+    api.get("/stats/public").then((r) => setPstats(r.data)).catch(() => {});
+  }, []);
   const goSearch = (e) => {
     e.preventDefault();
     const term = q.trim();
@@ -134,9 +139,12 @@ export default function Landing() {
               </Link>
             </div>
             <div className="mt-10 grid grid-cols-3 gap-6 max-w-md">
-              <Stat number="500+" label="Questions" />
-              <Stat number="10+" label="Years" />
-              <Stat number="AI" label="Explanations" />
+              <Stat number={pstats ? formatN(pstats.total_questions) : "—"} label="Questions" />
+              <Stat
+                number={pstats?.year_range ? `${pstats.year_range[0]}–${pstats.year_range[1]}` : "—"}
+                label="Years"
+              />
+              <Stat number={pstats ? formatN(pstats.weekly_questions_answered) : "—"} label="Practiced this week" />
             </div>
           </div>
           <div className="lg:col-span-5">
@@ -149,9 +157,15 @@ export default function Landing() {
                 />
               </div>
               <div className="absolute -bottom-6 -left-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm hidden md:block">
-                <p className="text-xs text-gray-500 mb-1">Today&apos;s Practice</p>
-                <p className="font-mono-stat text-2xl font-semibold text-gray-900">12 / 15</p>
-                <p className="text-xs text-emerald-600 font-medium mt-1">80% accuracy</p>
+                <p className="text-xs text-gray-500 mb-1">This week</p>
+                <p className="font-mono-stat text-2xl font-semibold text-gray-900">
+                  {pstats ? formatN(pstats.weekly_correct) : "—"} <span className="text-sm text-gray-400 font-normal">correct</span>
+                </p>
+                <p className="text-xs text-emerald-600 font-medium mt-1">
+                  {pstats?.weekly_questions_answered
+                    ? `${Math.round((pstats.weekly_correct / Math.max(1, pstats.weekly_questions_answered)) * 100)}% accuracy`
+                    : "by all students"}
+                </p>
               </div>
               <div className="absolute -top-6 -right-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm hidden md:block">
                 <div className="flex items-center gap-2">
@@ -217,6 +231,13 @@ export default function Landing() {
       </section>
     </div>
   );
+}
+
+function formatN(n) {
+  if (n === null || n === undefined) return "—";
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
 function Stat({ number, label }) {
