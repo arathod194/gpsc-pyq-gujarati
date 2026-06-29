@@ -12,10 +12,12 @@ import {
 import { Brain, Sparkles, Play } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import usePageTitle from "@/lib/usePageTitle";
 
 const ALL = "__all__";
 
 export default function PracticeStart() {
+  usePageTitle("Practice");
   const navigate = useNavigate();
   const { user } = useAuth();
   const [filters, setFilters] = useState({ exams: [], years: [], subjects: [] });

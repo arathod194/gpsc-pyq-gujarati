@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { Trophy, Flame, Calendar } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
+import usePageTitle from "@/lib/usePageTitle";
 
 const TABS = [
   { value: "mock", label: "Best Mock", icon: Trophy },
@@ -10,6 +11,7 @@ const TABS = [
 ];
 
 export default function Leaderboard() {
+  usePageTitle("Leaderboard");
   const [scope, setScope] = useState("mock");
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Timer, BookOpen, Award, Brain, Bookmark } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
+import usePageTitle from "@/lib/usePageTitle";
 
 const HERO_IMG = "https://images.pexels.com/photos/8085257/pexels-photo-8085257.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940";
 
@@ -55,6 +56,7 @@ const accentBg = {
 };
 
 export default function Landing() {
+  usePageTitle("GPSC Previous Year Questions in Gujarati", { suffix: false });
   return (
     <div className="page-enter">
       {/* Hero */}

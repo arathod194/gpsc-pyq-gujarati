@@ -1182,6 +1182,32 @@ async def root():
     return {"message": "GPSC Gujarat PYQ API", "version": "1.0"}
 
 
+@api_router.get("/sitemap.xml")
+async def sitemap():
+    """Dynamic sitemap for SEO. Includes static routes + all question detail pages."""
+    from fastapi.responses import Response
+    base = FRONTEND_URL.rstrip("/") if FRONTEND_URL else ""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    static_routes = ["/", "/browse", "/practice", "/mock", "/daily", "/leaderboard", "/login", "/signup"]
+    urls = []
+    for r in static_routes:
+        urls.append(
+            f"  <url><loc>{base}{r}</loc><changefreq>weekly</changefreq><priority>{'1.0' if r == '/' else '0.8'}</priority></url>"
+        )
+    qdocs = await db.questions.find({}, {"_id": 0, "id": 1}).limit(5000).to_list(5000)
+    for q in qdocs:
+        urls.append(
+            f"  <url><loc>{base}/question/{q['id']}</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>"
+        )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls)
+        + "\n</urlset>"
+    )
+    return Response(content=xml, media_type="application/xml")
+
+
 app.include_router(api_router)
 
 app.add_middleware(

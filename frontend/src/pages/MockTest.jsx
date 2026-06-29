@@ -9,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Timer, Play, ChevronLeft, ChevronRight, Flag, CheckCircle2, XCircle } from "lucide-react";
+import { Timer, Play, ChevronLeft, ChevronRight, Flag, CheckCircle2, XCircle, Share2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import usePageTitle from "@/lib/usePageTitle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,7 @@ function fmt(s) {
 }
 
 export default function MockTest() {
+  usePageTitle("Mock Test");
   const navigate = useNavigate();
   const { user } = useAuth();
   const [stage, setStage] = useState("setup"); // setup | running | result
@@ -304,19 +306,85 @@ export default function MockTest() {
 
   // Result stage
   const pct = result ? Math.round((result.score / result.total) * 100) : 0;
+  const shareText = result
+    ? `🎯 GPSC Mock Test: ${result.score}/${result.total} (${pct}%) — તમે પણ free માં try કરો! ${window.location.origin}/mock`
+    : "";
+  const shareCard = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "My GPSC Mock Test Score",
+          text: shareText,
+          url: `${window.location.origin}/mock`,
+        });
+        return;
+      }
+      await navigator.clipboard.writeText(shareText);
+      toast.success("Result copied to clipboard");
+    } catch (e) {
+      // user cancelled share or clipboard failed
+    }
+  };
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+  const twUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 page-enter">
-      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">Mock Test Result</p>
-        <p className="font-mono-stat text-5xl sm:text-6xl font-bold text-gray-900" data-testid="result-score">
-          {result.score} / {result.total}
-        </p>
-        <p className="mt-3 text-2xl font-medium text-gray-700">{pct}%</p>
-        <p className="mt-2 text-sm text-gray-500 font-mono-stat">Time: {fmt(result.time_taken_sec)}</p>
+      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center relative overflow-hidden">
+        {/* Decorative gradient */}
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-50/60 to-transparent pointer-events-none" />
+        <div className="relative">
+          <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">Mock Test Result</p>
+          <p className="font-mono-stat text-5xl sm:text-6xl font-bold text-gray-900" data-testid="result-score">
+            {result.score} / {result.total}
+          </p>
+          <p className="mt-3 text-2xl font-medium text-gray-700">{pct}%</p>
+          <p className="mt-2 text-sm text-gray-500 font-mono-stat">Time: {fmt(result.time_taken_sec)}</p>
+          {pct >= 80 && (
+            <p className="mt-3 inline-block px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-xs font-medium font-gujarati">
+              🏆 શાનદાર! Streak જાળવી રાખો
+            </p>
+          )}
+        </div>
+
+        {/* Share row */}
+        <div className="mt-8">
+          <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider">Share your result</p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={shareCard}
+              className="btn-lift"
+              data-testid="share-native-btn"
+            >
+              <Share2 className="h-4 w-4 mr-1.5" /> Share
+            </Button>
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors btn-lift"
+              data-testid="share-whatsapp"
+            >
+              WhatsApp
+            </a>
+            <a
+              href={twUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-gray-900 hover:bg-black text-white text-sm font-medium transition-colors btn-lift"
+              data-testid="share-twitter"
+            >
+              Twitter
+            </a>
+          </div>
+        </div>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button onClick={() => setStage("setup")} variant="outline" data-testid="retry-mock">Try Again</Button>
           <Button onClick={() => navigate("/dashboard")} className="bg-blue-600 hover:bg-blue-700">View Dashboard</Button>
+          <Button onClick={() => navigate("/leaderboard")} variant="outline">Leaderboard</Button>
         </div>
       </div>
 

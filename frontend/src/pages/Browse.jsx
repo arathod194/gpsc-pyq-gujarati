@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
+import usePageTitle from "@/lib/usePageTitle";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,7 @@ import {
 const ALL = "__all__";
 
 export default function Browse() {
+  usePageTitle("Browse PYQs");
   const navigate = useNavigate();
   const [filters, setFilters] = useState({ exams: [], years: [], subjects: [] });
   const [exam, setExam] = useState(ALL);

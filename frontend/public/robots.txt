@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /bookmarks
+Disallow: /verify-email
+Disallow: /reset-password
+
+Sitemap: https://exam-prep-gujrat.preview.emergentagent.com/api/sitemap.xml

@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Flame, CheckCircle2, XCircle, Trophy, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import AdSlot from "@/components/AdSlot";
+import usePageTitle from "@/lib/usePageTitle";
 
 export default function Daily() {
+  usePageTitle("Daily Question");
   const navigate = useNavigate();
   const { user } = useAuth();
   const [data, setData] = useState(null);
