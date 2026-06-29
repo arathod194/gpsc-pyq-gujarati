@@ -59,6 +59,9 @@ export default function Login() {
             {loading ? "Logging in…" : "Login"}
           </Button>
         </form>
+        <p className="mt-3 text-xs text-gray-500 text-center">
+          <Link to="/forgot-password" className="text-blue-600 hover:underline" data-testid="forgot-link">Forgot password?</Link>
+        </p>
         <p className="mt-6 text-sm text-gray-500 text-center">
           Don&apos;t have an account? <Link to="/signup" className="text-blue-600 hover:underline">Sign up</Link>
         </p>

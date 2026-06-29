@@ -3,13 +3,17 @@ import os
 import uuid
 import logging
 import json
-from datetime import datetime, timezone, timedelta
+import asyncio
+import secrets
+import hashlib
+from datetime import datetime, timezone, timedelta, date
 from pathlib import Path
 from typing import List, Optional, Annotated
 
 import bcrypt
 import jwt
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+import resend
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -27,6 +31,12 @@ DB_NAME = os.environ["DB_NAME"]
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALG = os.environ.get("JWT_ALGORITHM", "HS256")
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
+
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -51,6 +61,13 @@ class User(BaseModel):
     name: str
     password_hash: str
     role: str = "user"  # user | admin
+    email_verified: bool = False
+    verification_token: Optional[str] = None
+    reset_token: Optional[str] = None
+    reset_token_expiry: Optional[str] = None
+    current_streak: int = 0
+    longest_streak: int = 0
+    last_streak_date: Optional[str] = None  # YYYY-MM-DD
     created_at: str = Field(default_factory=utcnow_iso)
 
 
@@ -59,6 +76,9 @@ class UserPublic(BaseModel):
     email: EmailStr
     name: str
     role: str
+    email_verified: bool = False
+    current_streak: int = 0
+    longest_streak: int = 0
     created_at: str
 
 
@@ -146,6 +166,40 @@ class GenerateReq(BaseModel):
     count: int = 5
 
 
+class VerifyTokenReq(BaseModel):
+    token: str
+
+
+class ForgotPwReq(BaseModel):
+    email: EmailStr
+
+
+class ResetPwReq(BaseModel):
+    token: str
+    new_password: str
+
+
+class DailyAnswerReq(BaseModel):
+    selected_index: int
+
+
+class BulkImportReq(BaseModel):
+    questions: List[QuestionCreate]
+
+
+def user_to_public(u: User) -> UserPublic:
+    return UserPublic(
+        id=u.id,
+        email=u.email,
+        name=u.name,
+        role=u.role,
+        email_verified=u.email_verified,
+        current_streak=u.current_streak,
+        longest_streak=u.longest_streak,
+        created_at=u.created_at,
+    )
+
+
 # ---------------------- Auth helpers ----------------------
 def hash_password(pw: str) -> str:
     return bcrypt.hashpw(pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -200,6 +254,47 @@ async def require_admin(user: Optional[User] = Depends(get_current_user)) -> Use
     return user
 
 
+# ---------------------- Email helpers ----------------------
+async def _send_email(to_email: str, subject: str, html: str) -> Optional[str]:
+    """Send email via Resend. Returns email id or None (when key not configured / dev mode)."""
+    if not RESEND_API_KEY:
+        logger.info("[email-mock] to=%s subject=%s", to_email, subject)
+        return None
+    params = {"from": SENDER_EMAIL, "to": [to_email], "subject": subject, "html": html}
+    try:
+        res = await asyncio.to_thread(resend.Emails.send, params)
+        return res.get("id") if isinstance(res, dict) else None
+    except Exception:
+        logger.exception("Resend send failed")
+        return None
+
+
+def _verify_link(token: str) -> str:
+    return f"{FRONTEND_URL}/verify-email?token={token}" if FRONTEND_URL else f"/verify-email?token={token}"
+
+
+def _reset_link(token: str) -> str:
+    return f"{FRONTEND_URL}/reset-password?token={token}" if FRONTEND_URL else f"/reset-password?token={token}"
+
+
+def _email_template(title: str, body_html: str, cta_label: str, cta_url: str) -> str:
+    return f"""
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-family: Arial, sans-serif; background: #F9FAFB; padding: 32px 0;">
+      <tr><td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#fff; border:1px solid #E5E7EB; border-radius:8px; padding: 40px;">
+          <tr><td style="color:#111827; font-size:22px; font-weight:600;">{title}</td></tr>
+          <tr><td style="color:#4B5563; font-size:15px; line-height:1.6; padding-top:12px;">{body_html}</td></tr>
+          <tr><td style="padding-top:24px;">
+            <a href="{cta_url}" style="display:inline-block; background:#2563EB; color:#fff; padding:12px 20px; border-radius:6px; text-decoration:none; font-weight:500;">{cta_label}</a>
+          </td></tr>
+          <tr><td style="color:#9CA3AF; font-size:12px; padding-top:24px;">જો બટન કામ ન કરે, આ link copy કરો:<br/><span style="color:#2563EB; word-break:break-all;">{cta_url}</span></td></tr>
+          <tr><td style="color:#9CA3AF; font-size:12px; padding-top:24px; border-top:1px solid #E5E7EB; margin-top:24px;">— GPSC Gujarat PYQ</td></tr>
+        </table>
+      </td></tr>
+    </table>
+    """
+
+
 # ---------------------- Routes: Auth ----------------------
 @api_router.post("/auth/signup", response_model=AuthRes)
 async def signup(req: SignupReq):
@@ -209,18 +304,28 @@ async def signup(req: SignupReq):
     if len(req.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
 
+    verification_token = secrets.token_urlsafe(32)
     user = User(
         email=req.email.lower(),
         name=req.name.strip(),
         password_hash=hash_password(req.password),
         role="user",
+        verification_token=verification_token,
     )
     await db.users.insert_one(user.model_dump())
-    token = create_token(user.id, user.role)
-    return AuthRes(
-        token=token,
-        user=UserPublic(id=user.id, email=user.email, name=user.name, role=user.role, created_at=user.created_at),
+
+    # Fire verification email (non-blocking in caller's path; we await but it's fast)
+    link = _verify_link(verification_token)
+    html = _email_template(
+        "GPSC PYQ — Verify your email",
+        f"નમસ્તે <b>{user.name}</b>,<br/><br/>GPSC Gujarat PYQ માં join કરવા બદલ આભાર. નીચે ક્લિક કરી તમારો email વેરિફાય કરો.",
+        "Verify Email",
+        link,
     )
+    await _send_email(user.email, "Verify your email — GPSC PYQ", html)
+
+    token = create_token(user.id, user.role)
+    return AuthRes(token=token, user=user_to_public(user))
 
 
 @api_router.post("/auth/login", response_model=AuthRes)
@@ -230,15 +335,91 @@ async def login(req: LoginReq):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     u = User(**doc)
     token = create_token(u.id, u.role)
-    return AuthRes(
-        token=token,
-        user=UserPublic(id=u.id, email=u.email, name=u.name, role=u.role, created_at=u.created_at),
-    )
+    return AuthRes(token=token, user=user_to_public(u))
 
 
 @api_router.get("/auth/me", response_model=UserPublic)
 async def me(user: User = Depends(require_user)):
-    return UserPublic(id=user.id, email=user.email, name=user.name, role=user.role, created_at=user.created_at)
+    return user_to_public(user)
+
+
+@api_router.post("/auth/verify")
+async def verify_email(req: VerifyTokenReq):
+    doc = await db.users.find_one({"verification_token": req.token}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+    await db.users.update_one(
+        {"id": doc["id"]},
+        {"$set": {"email_verified": True, "verification_token": None}},
+    )
+    return {"verified": True}
+
+
+@api_router.post("/auth/resend-verification")
+async def resend_verification(user: User = Depends(require_user)):
+    if user.email_verified:
+        return {"sent": False, "reason": "already verified"}
+    token = secrets.token_urlsafe(32)
+    await db.users.update_one({"id": user.id}, {"$set": {"verification_token": token}})
+    link = _verify_link(token)
+    html = _email_template(
+        "GPSC PYQ — Verify your email",
+        f"નમસ્તે <b>{user.name}</b>,<br/><br/>નીચે ક્લિક કરી તમારો email વેરિફાય કરો.",
+        "Verify Email",
+        link,
+    )
+    eid = await _send_email(user.email, "Verify your email — GPSC PYQ", html)
+    return {"sent": True, "email_id": eid, "dev_link": link if not RESEND_API_KEY else None}
+
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPwReq):
+    doc = await db.users.find_one({"email": req.email.lower()}, {"_id": 0})
+    if not doc:
+        # Don't reveal account existence
+        return {"sent": True}
+    token = secrets.token_urlsafe(32)
+    expiry = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    await db.users.update_one(
+        {"id": doc["id"]},
+        {"$set": {"reset_token": token, "reset_token_expiry": expiry}},
+    )
+    link = _reset_link(token)
+    html = _email_template(
+        "Password reset",
+        f"નમસ્તે <b>{doc['name']}</b>,<br/><br/>નીચે ક્લિક કરી તમારો password reset કરો. આ link 2 કલાક માટે valid છે.",
+        "Reset Password",
+        link,
+    )
+    eid = await _send_email(doc["email"], "Password reset — GPSC PYQ", html)
+    return {"sent": True, "email_id": eid, "dev_link": link if not RESEND_API_KEY else None}
+
+
+@api_router.post("/auth/reset-password")
+async def reset_password(req: ResetPwReq):
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    doc = await db.users.find_one({"reset_token": req.token}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    if doc.get("reset_token_expiry"):
+        try:
+            exp = datetime.fromisoformat(doc["reset_token_expiry"])
+            if exp < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="Reset token expired")
+        except (TypeError, ValueError):
+            pass
+    await db.users.update_one(
+        {"id": doc["id"]},
+        {
+            "$set": {
+                "password_hash": hash_password(req.new_password),
+                "reset_token": None,
+                "reset_token_expiry": None,
+            }
+        },
+    )
+    return {"reset": True}
 
 
 # ---------------------- Routes: Questions ----------------------
@@ -369,6 +550,31 @@ async def user_stats(user: User = Depends(require_user)):
     mock_attempts = [a for a in docs if a["mode"] == "mock"]
     best_mock = max([a["score"] for a in mock_attempts], default=0)
     bookmarks_count = await db.bookmarks.count_documents({"user_id": user.id})
+
+    # Subject-wise breakdown across all answered questions
+    subject_map: dict = {}
+    qid_to_subject: dict = {}
+    all_qids = list({qid for a in docs for qid in a["question_ids"]})
+    if all_qids:
+        qdocs = await db.questions.find({"id": {"$in": all_qids}}, {"_id": 0, "id": 1, "subject": 1, "correct_index": 1}).to_list(2000)
+        for qd in qdocs:
+            qid_to_subject[qd["id"]] = (qd["subject"], qd["correct_index"])
+    for a in docs:
+        for qid, ans in zip(a["question_ids"], a["answers"]):
+            meta = qid_to_subject.get(qid)
+            if not meta:
+                continue
+            subj, correct_idx = meta
+            entry = subject_map.setdefault(subj, {"subject": subj, "total": 0, "correct": 0})
+            entry["total"] += 1
+            if ans is not None and ans == correct_idx:
+                entry["correct"] += 1
+    subject_breakdown = []
+    for s in subject_map.values():
+        s["accuracy"] = round((s["correct"] / s["total"]) * 100, 1) if s["total"] else 0.0
+        subject_breakdown.append(s)
+    subject_breakdown.sort(key=lambda x: x["total"], reverse=True)
+
     return {
         "total_attempts": total_attempts,
         "total_questions_attempted": total_questions,
@@ -377,6 +583,9 @@ async def user_stats(user: User = Depends(require_user)):
         "best_mock_score": best_mock,
         "mock_attempts": len(mock_attempts),
         "bookmarks": bookmarks_count,
+        "subject_breakdown": subject_breakdown,
+        "current_streak": user.current_streak,
+        "longest_streak": user.longest_streak,
     }
 
 
@@ -497,6 +706,244 @@ async def ai_generate(req: GenerateReq, _: User = Depends(require_user)):
     except Exception as e:
         logger.exception("AI generate failed")
         raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)[:200]}")
+
+
+# ---------------------- Routes: Daily Question & Streak ----------------------
+def _today_str() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _yesterday_str() -> str:
+    return (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+async def _pick_daily_question() -> Optional[dict]:
+    today = _today_str()
+    pinned = await db.daily_pins.find_one({"date": today}, {"_id": 0})
+    if pinned:
+        q = await db.questions.find_one({"id": pinned["question_id"]}, {"_id": 0})
+        if q:
+            return q
+    # Deterministic pick by date hash
+    qids = await db.questions.distinct("id")
+    if not qids:
+        return None
+    qids.sort()
+    h = int(hashlib.sha256(today.encode()).hexdigest(), 16)
+    chosen_id = qids[h % len(qids)]
+    await db.daily_pins.update_one(
+        {"date": today}, {"$set": {"date": today, "question_id": chosen_id}}, upsert=True
+    )
+    q = await db.questions.find_one({"id": chosen_id}, {"_id": 0})
+    return q
+
+
+@api_router.get("/daily")
+async def daily_question(user: Optional[User] = Depends(get_current_user)):
+    q = await _pick_daily_question()
+    if not q:
+        raise HTTPException(status_code=404, detail="No questions available")
+    today = _today_str()
+    attempted = None
+    if user:
+        att = await db.daily_attempts.find_one(
+            {"user_id": user.id, "date": today}, {"_id": 0}
+        )
+        if att:
+            attempted = {
+                "selected_index": att.get("selected_index"),
+                "correct": att.get("correct"),
+            }
+    return {
+        "date": today,
+        "question": Question(**q).model_dump(),
+        "attempted": attempted,
+        "current_streak": user.current_streak if user else 0,
+        "longest_streak": user.longest_streak if user else 0,
+    }
+
+
+@api_router.post("/daily/answer")
+async def daily_answer(req: DailyAnswerReq, user: User = Depends(require_user)):
+    q = await _pick_daily_question()
+    if not q:
+        raise HTTPException(status_code=404, detail="No daily question")
+    today = _today_str()
+    existing = await db.daily_attempts.find_one(
+        {"user_id": user.id, "date": today}, {"_id": 0}
+    )
+    if existing:
+        return {
+            "already_attempted": True,
+            "correct": existing["correct"],
+            "correct_index": q["correct_index"],
+            "current_streak": user.current_streak,
+            "longest_streak": user.longest_streak,
+        }
+    correct = req.selected_index == q["correct_index"]
+    await db.daily_attempts.insert_one(
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": user.id,
+            "date": today,
+            "question_id": q["id"],
+            "selected_index": req.selected_index,
+            "correct": correct,
+            "created_at": utcnow_iso(),
+        }
+    )
+
+    # Update streak
+    new_streak = 1
+    if user.last_streak_date == _yesterday_str():
+        new_streak = user.current_streak + 1
+    elif user.last_streak_date == today:
+        new_streak = user.current_streak  # idempotent
+    longest = max(user.longest_streak, new_streak)
+    await db.users.update_one(
+        {"id": user.id},
+        {
+            "$set": {
+                "current_streak": new_streak,
+                "longest_streak": longest,
+                "last_streak_date": today,
+            }
+        },
+    )
+
+    return {
+        "already_attempted": False,
+        "correct": correct,
+        "correct_index": q["correct_index"],
+        "current_streak": new_streak,
+        "longest_streak": longest,
+    }
+
+
+# ---------------------- Routes: Leaderboard ----------------------
+@api_router.get("/leaderboard")
+async def leaderboard(scope: str = "mock", limit: int = 20):
+    """
+    scope: 'mock' = best mock score per user
+           'weekly' = total correct answers in last 7 days
+           'streak' = longest streak
+    """
+    limit = max(1, min(limit, 100))
+    if scope == "streak":
+        users = await db.users.find(
+            {"longest_streak": {"$gt": 0}}, {"_id": 0, "id": 1, "name": 1, "longest_streak": 1, "current_streak": 1}
+        ).sort("longest_streak", -1).limit(limit).to_list(limit)
+        return {
+            "scope": "streak",
+            "entries": [
+                {"user_id": u["id"], "name": u["name"], "score": u["longest_streak"], "extra": f"current: {u.get('current_streak', 0)}"}
+                for u in users
+            ],
+        }
+
+    if scope == "weekly":
+        since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        pipeline = [
+            {"$match": {"completed_at": {"$gte": since}}},
+            {"$group": {"_id": "$user_id", "correct": {"$sum": "$score"}, "total": {"$sum": "$total"}, "attempts": {"$sum": 1}}},
+            {"$sort": {"correct": -1}},
+            {"$limit": limit},
+        ]
+    else:  # mock (default)
+        pipeline = [
+            {"$match": {"mode": "mock"}},
+            {"$group": {"_id": "$user_id", "best_score": {"$max": "$score"}, "best_total": {"$max": "$total"}, "attempts": {"$sum": 1}}},
+            {"$sort": {"best_score": -1}},
+            {"$limit": limit},
+        ]
+    rows = await db.attempts.aggregate(pipeline).to_list(limit)
+    if not rows:
+        return {"scope": scope, "entries": []}
+    user_ids = [r["_id"] for r in rows]
+    user_docs = await db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(limit)
+    name_map = {u["id"]: u["name"] for u in user_docs}
+    entries = []
+    for r in rows:
+        name = name_map.get(r["_id"], "Anonymous")
+        if scope == "weekly":
+            entries.append({
+                "user_id": r["_id"],
+                "name": name,
+                "score": r["correct"],
+                "extra": f"{r['attempts']} attempts · {r['total']} total Qs",
+            })
+        else:
+            entries.append({
+                "user_id": r["_id"],
+                "name": name,
+                "score": r["best_score"],
+                "extra": f"out of {r['best_total']} · {r['attempts']} attempts",
+            })
+    return {"scope": scope, "entries": entries}
+
+
+# ---------------------- Routes: Bulk Import ----------------------
+@api_router.post("/questions/bulk_import")
+async def bulk_import(req: BulkImportReq, _: User = Depends(require_admin)):
+    """Import a JSON array of questions (admin only)."""
+    if not req.questions:
+        raise HTTPException(status_code=400, detail="No questions provided")
+    inserted = 0
+    errors = []
+    for i, item in enumerate(req.questions):
+        try:
+            if len(item.options) != 4:
+                raise ValueError("Exactly 4 options required")
+            if not (0 <= item.correct_index <= 3):
+                raise ValueError("correct_index must be 0..3")
+            q = Question(**item.model_dump())
+            await db.questions.insert_one(q.model_dump())
+            inserted += 1
+        except Exception as e:
+            errors.append({"index": i, "error": str(e)})
+    return {"inserted": inserted, "errors": errors, "total_submitted": len(req.questions)}
+
+
+@api_router.post("/questions/import_csv")
+async def import_csv(file: UploadFile = File(...), _: User = Depends(require_admin)):
+    """Import questions from a CSV file (admin only).
+    Expected columns: exam,year,subject,topic,question_text,opt_a,opt_b,opt_c,opt_d,correct_index,official_explanation
+    correct_index can be 0..3 OR a letter A/B/C/D (case-insensitive).
+    """
+    if not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only .csv files supported")
+    content = (await file.read()).decode("utf-8")
+    import csv
+    from io import StringIO
+    reader = csv.DictReader(StringIO(content))
+    inserted = 0
+    errors = []
+    labels = ["ક", "ખ", "ગ", "ઘ"]
+    for i, row in enumerate(reader):
+        try:
+            ci = str(row.get("correct_index", "")).strip().upper()
+            ci_int = {"A": 0, "B": 1, "C": 2, "D": 3}.get(ci, None)
+            if ci_int is None:
+                ci_int = int(ci)
+            opts = [
+                {"label": labels[j], "text": (row.get(f"opt_{c}") or "").strip()}
+                for j, c in enumerate(["a", "b", "c", "d"])
+            ]
+            q = Question(
+                exam=row["exam"].strip(),
+                year=int(row["year"]),
+                subject=row["subject"].strip(),
+                topic=(row.get("topic") or "").strip() or None,
+                question_text=row["question_text"].strip(),
+                options=[Option(**o) for o in opts],
+                correct_index=ci_int,
+                official_explanation=(row.get("official_explanation") or "").strip() or None,
+            )
+            await db.questions.insert_one(q.model_dump())
+            inserted += 1
+        except Exception as e:
+            errors.append({"row": i + 2, "error": str(e)})
+    return {"inserted": inserted, "errors": errors}
 
 
 # ---------------------- Seed ----------------------
@@ -691,10 +1138,16 @@ SEED_QUESTIONS = [
 async def startup():
     # Indexes
     await db.users.create_index("email", unique=True)
+    await db.users.create_index("verification_token")
+    await db.users.create_index("reset_token")
     await db.questions.create_index([("exam", 1), ("year", -1)])
     await db.questions.create_index("subject")
     await db.attempts.create_index([("user_id", 1), ("completed_at", -1)])
+    await db.attempts.create_index("completed_at")
+    await db.attempts.create_index([("mode", 1), ("score", -1)])
     await db.bookmarks.create_index([("user_id", 1), ("question_id", 1)], unique=True)
+    await db.daily_pins.create_index("date", unique=True)
+    await db.daily_attempts.create_index([("user_id", 1), ("date", 1)], unique=True)
 
     # Seed admin
     admin_doc = await db.users.find_one({"email": SEED_ADMIN_EMAIL})
@@ -704,9 +1157,16 @@ async def startup():
             name="GPSC Admin",
             password_hash=hash_password(SEED_ADMIN_PASSWORD),
             role="admin",
+            email_verified=True,
         )
         await db.users.insert_one(admin.model_dump())
         logger.info("Seeded admin user: %s", SEED_ADMIN_EMAIL)
+    else:
+        # Ensure existing admin has email_verified flag
+        await db.users.update_one(
+            {"email": SEED_ADMIN_EMAIL},
+            {"$set": {"email_verified": True}},
+        )
 
     # Seed questions
     count = await db.questions.count_documents({})

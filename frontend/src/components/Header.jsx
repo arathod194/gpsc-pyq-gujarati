@@ -32,10 +32,12 @@ export default function Header() {
           <span className="text-xs text-gray-500 hidden sm:inline">ગુજરાત</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-6">
+          <NavLink to="/daily" className={navClass} data-testid="nav-daily">Daily</NavLink>
           <NavLink to="/browse" className={navClass} data-testid="nav-browse">Browse</NavLink>
           <NavLink to="/practice" className={navClass} data-testid="nav-practice">Practice</NavLink>
-          <NavLink to="/mock" className={navClass} data-testid="nav-mock">Mock Test</NavLink>
+          <NavLink to="/mock" className={navClass} data-testid="nav-mock">Mock</NavLink>
+          <NavLink to="/leaderboard" className={navClass} data-testid="nav-leaderboard">Leaderboard</NavLink>
           {user && (
             <NavLink to="/dashboard" className={navClass} data-testid="nav-dashboard">Dashboard</NavLink>
           )}

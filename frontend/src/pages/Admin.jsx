@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Plus, ShieldCheck } from "lucide-react";
+import { Trash2, Plus, ShieldCheck, Upload, FileJson, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 const EXAMS = ["GPSC Class 1-2", "Dy.SO/Nayab Mamlatdar", "PI", "GPSC Class 3"];
@@ -73,6 +73,42 @@ export default function Admin() {
     refresh();
   };
 
+  const importJSON = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const parsed = JSON.parse(text);
+      const arr = Array.isArray(parsed) ? parsed : parsed.questions;
+      if (!Array.isArray(arr)) throw new Error("JSON must be an array or { questions: [...] }");
+      const res = await api.post("/questions/bulk_import", { questions: arr });
+      toast.success(`Imported ${res.data.inserted} questions${res.data.errors.length ? `, ${res.data.errors.length} errors` : ""}`);
+      if (res.data.errors.length) console.warn("Import errors:", res.data.errors);
+      refresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || err.message || "Import failed");
+    }
+  };
+
+  const importCSV = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    const fd = new FormData();
+    fd.append("file", f);
+    try {
+      const res = await api.post("/questions/import_csv", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(`Imported ${res.data.inserted} questions${res.data.errors.length ? `, ${res.data.errors.length} errors` : ""}`);
+      if (res.data.errors.length) console.warn("Import errors:", res.data.errors);
+      refresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "CSV import failed");
+    }
+  };
+
   if (!user || user.role !== "admin") return null;
 
   return (
@@ -88,11 +124,40 @@ export default function Admin() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Form */}
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-lg p-6 h-fit">
-          <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-            <Plus className="h-4 w-4" /> Add new question
-          </h2>
+        {/* Form + Bulk Import */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Bulk Import card */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-1 flex items-center gap-2">
+              <Upload className="h-4 w-4" /> Bulk Import
+            </h2>
+            <p className="text-xs text-gray-500 mb-4 font-gujarati">CSV અથવા JSON file upload કરો</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="cursor-pointer flex flex-col items-center gap-1.5 p-4 border border-dashed border-gray-300 rounded-md hover:border-blue-400 hover:bg-blue-50/40 transition-colors text-center">
+                <FileJson className="h-5 w-5 text-blue-600" />
+                <span className="text-xs font-medium text-gray-700">JSON</span>
+                <input type="file" accept="application/json,.json" onChange={importJSON} className="hidden" data-testid="import-json" />
+              </label>
+              <label className="cursor-pointer flex flex-col items-center gap-1.5 p-4 border border-dashed border-gray-300 rounded-md hover:border-emerald-400 hover:bg-emerald-50/40 transition-colors text-center">
+                <FileText className="h-5 w-5 text-emerald-600" />
+                <span className="text-xs font-medium text-gray-700">CSV</span>
+                <input type="file" accept=".csv,text/csv" onChange={importCSV} className="hidden" data-testid="import-csv" />
+              </label>
+            </div>
+            <details className="mt-3 text-xs text-gray-500">
+              <summary className="cursor-pointer hover:text-gray-800">CSV columns / JSON shape</summary>
+              <div className="mt-2 space-y-2">
+                <p><b>CSV columns:</b> exam, year, subject, topic, question_text, opt_a, opt_b, opt_c, opt_d, correct_index (0-3 or A-D), official_explanation</p>
+                <p><b>JSON:</b> array of objects with exam, year, subject, topic, question_text, options [{`{label, text}`} x 4], correct_index, official_explanation</p>
+              </div>
+            </details>
+          </div>
+
+          {/* Add form */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 h-fit">
+            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <Plus className="h-4 w-4" /> Add new question
+            </h2>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -169,6 +234,7 @@ export default function Admin() {
               {saving ? "Saving…" : "Save Question"}
             </Button>
           </div>
+        </div>
         </div>
 
         {/* List */}

@@ -16,6 +16,11 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Admin from "@/pages/Admin";
 import QuestionDetail from "@/pages/QuestionDetail";
+import Daily from "@/pages/Daily";
+import Leaderboard from "@/pages/Leaderboard";
+import VerifyEmail from "@/pages/VerifyEmail";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 
 export default function App() {
   return (
@@ -36,6 +41,11 @@ export default function App() {
               <Route path="/signup" element={<Signup />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/question/:id" element={<QuestionDetail />} />
+              <Route path="/daily" element={<Daily />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
             </Routes>
           </main>
           <footer className="border-t border-gray-200 bg-white">

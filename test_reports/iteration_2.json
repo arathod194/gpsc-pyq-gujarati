@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 2 testing of GPSC PYQ new features. Backend: 15/15 pytest cases passed (daily question + streak, email verification with dev-link fallback, forgot/reset password flow, leaderboard 3 scopes, stats subject_breakdown + streak, bulk JSON import, CSV import with letter/numeric correct_index, admin gating). Frontend: All new pages verified via Playwright — /daily (anonymous+authed flow with login redirect, streak display, submit reveal), /leaderboard (3 tabs render with rows), Dashboard (streak card, daily link, verify banner correctly hidden for admin), /forgot-password (dev_link shown when RESEND_API_KEY empty), /verify-email?token=invalid (error state), Admin Bulk Import (JSON + CSV file uploads triggered toast 'Imported 1 questions').",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2.py",
+    "/app/test_reports/pytest/pytest_results_iter2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GET /api/daily for unauthenticated users always returns current_streak/longest_streak as 0 — OK, but consider documenting that these fields are only meaningful when authenticated.",
+    "POST /api/auth/forgot-password returns dev_link in JSON when RESEND_API_KEY is empty. Make sure this fallback is disabled in production (currently keyed on RESEND_API_KEY truthiness — fine, but worth a comment in code).",
+    "import_csv accepts UploadFile but does not check file size; a very large CSV could OOM. Consider streaming or a max-size guard.",
+    "bulk_import iterates with await db.questions.insert_one per item — for large imports consider insert_many for performance.",
+    "server.py is now ~1200 lines — strongly recommend splitting into routers (auth, questions, daily, leaderboard, admin_import).",
+    "Streak rollover (current_streak reset to 1 when last_streak_date is older than yesterday) is implemented correctly in /api/daily/answer, but is only updated on POST. If a user skips a day and then loads /daily, current_streak still shows the stale value until they answer. UI-wise OK, but a background job or read-time check would be more accurate."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2.py (new)"
+  ],
+  "success_rate": {"backend": "100% (15/15 new + iteration 1's 23/23 untouched)", "frontend": "100% (all 7 new UI flows)"},
+  "test_credentials": "Admin: admin@gpscpyq.in / Admin@123 (seeded). Iteration 2 created throwaway TEST_it2_* and TEST_bulk_*/TEST_csv_user_* users — they remain in DB but use TEST_ prefix.",
+  "seed_data_creation": "Tests inserted ~4 TEST_-prefixed questions via bulk_import + CSV import. They remain in DB; safe to leave (clearly prefixed). Daily streak / daily_attempts collections populated for one TEST user.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file: /app/backend/tests/test_iteration2.py — covers all 5 new features. Reuses fixtures (http session, admin_token, user_creds, user_token). The test sequence is order-dependent within classes (TestPasswordReset.test_forgot_and_reset changes the user's password, so any test relying on user_creds password after this must re-signup). RESEND_API_KEY is intentionally empty — every email-sending endpoint returns dev_link in response, which UI exposes via [data-testid=forgot-dev-link]. New data-testids added in iteration 2: daily-question-text, daily-streak, daily-option-{i}, daily-submit-btn, daily-go-practice, leaderboard-tab-{mock|weekly|streak}, leaderboard-row-{i}, stat-streak, dashboard-daily-link, resend-verify-btn, dismiss-verify, forgot-email, forgot-submit, forgot-dev-link, reset-pw, reset-pw2, reset-submit, verify-go-dashboard, import-json, import-csv.",
+  "rca of the issue": "No issues found. Verified RESEND fallback path: POST /api/auth/forgot-password returns {sent: true, dev_link: '/reset-password?token=...'} when RESEND_API_KEY is empty (logs '[email-mock] to=... subject=...' instead of calling Resend). Reset token in dev_link successfully used by POST /api/auth/reset-password and the new password works on subsequent login while the old one fails. Streak logic verified single-day path: first answer sets current_streak=1, longest_streak=max(prev, 1); second same-day answer returns already_attempted=true without altering streak. Subject_breakdown verified: structure {subject, total, correct, accuracy} present and sorted by total desc."
+}
