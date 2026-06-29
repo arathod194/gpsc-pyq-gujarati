@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import Header from "@/components/Header";
 import StickyAd from "@/components/StickyAd";
+import InstallPrompt from "@/components/InstallPrompt";
 import Landing from "@/pages/Landing";
 import Browse from "@/pages/Browse";
 import PracticeStart from "@/pages/PracticeStart";
@@ -26,6 +27,7 @@ import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
+import NotFound from "@/pages/NotFound";
 
 export default function App() {
   return (
@@ -55,6 +57,7 @@ export default function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
           <footer className="border-t border-gray-200 bg-white">
@@ -101,6 +104,7 @@ export default function App() {
             </div>
           </footer>
           <StickyAd />
+          <InstallPrompt />
         </div>
         <Toaster position="top-center" richColors />
       </BrowserRouter>
