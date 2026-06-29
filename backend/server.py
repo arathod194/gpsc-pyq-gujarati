@@ -590,6 +590,99 @@ async def user_stats(user: User = Depends(require_user)):
     }
 
 
+@api_router.get("/me/next-step")
+async def next_step(user: User = Depends(require_user)):
+    """
+    Returns ONE suggested next action for the user — drives engagement.
+    Pure logic, no AI / external calls.
+    """
+    today = _today_str()
+    # Has the user answered today's daily?
+    daily_today = await db.daily_attempts.find_one(
+        {"user_id": user.id, "date": today}, {"_id": 0}
+    )
+
+    # 1) Highest priority: do today's daily question
+    if not daily_today:
+        if user.current_streak > 0:
+            return {
+                "key": "daily_streak",
+                "title": f"Keep your {user.current_streak}-day streak 🔥",
+                "subtitle": "આજનો daily question બાકી છે",
+                "cta_label": "Answer Daily Question",
+                "cta_url": "/daily",
+                "tone": "amber",
+            }
+        return {
+            "key": "daily_first",
+            "title": "Start a streak today",
+            "subtitle": "આજનો પ્રશ્ન જવાબ આપો — daily streak શરૂ કરો",
+            "cta_label": "Daily Question",
+            "cta_url": "/daily",
+            "tone": "amber",
+        }
+
+    # Build subject-breakdown to find weakest area (>=5 attempts, <60% accuracy)
+    attempts = await db.attempts.find({"user_id": user.id}, {"_id": 0}).to_list(500)
+    qids = list({qid for a in attempts for qid in a["question_ids"]})
+    qmap: dict = {}
+    if qids:
+        qdocs = await db.questions.find({"id": {"$in": qids}}, {"_id": 0, "id": 1, "subject": 1, "correct_index": 1}).to_list(2000)
+        qmap = {q["id"]: q for q in qdocs}
+    subj_stats: dict = {}
+    for a in attempts:
+        for qid, ans in zip(a["question_ids"], a["answers"]):
+            q = qmap.get(qid)
+            if not q:
+                continue
+            s = subj_stats.setdefault(q["subject"], {"total": 0, "correct": 0})
+            s["total"] += 1
+            if ans is not None and ans == q["correct_index"]:
+                s["correct"] += 1
+
+    weakest = None
+    for subj, s in subj_stats.items():
+        if s["total"] < 5:
+            continue
+        acc = s["correct"] / s["total"]
+        if acc < 0.6 and (weakest is None or acc < weakest[1]):
+            weakest = (subj, acc)
+
+    # 2) Weak subject → suggest targeted practice
+    if weakest:
+        subj, acc = weakest
+        return {
+            "key": "weak_subject",
+            "title": f"Strengthen {subj}",
+            "subtitle": f"Current accuracy: {round(acc * 100)}%",
+            "cta_label": "Practice this subject",
+            "cta_url": f"/practice?subject={subj}",
+            "tone": "blue",
+        }
+
+    # 3) No mock yet → suggest one
+    has_mock = any(a["mode"] == "mock" for a in attempts)
+    if not has_mock:
+        return {
+            "key": "try_mock",
+            "title": "Try your first Mock Test",
+            "subtitle": "Real exam જેવો અનુભવ — ટાઈમર સાથે",
+            "cta_label": "Start Mock Test",
+            "cta_url": "/mock",
+            "tone": "emerald",
+        }
+
+    # 4) Default: keep practicing
+    return {
+        "key": "keep_going",
+        "title": "Keep going — you're doing great",
+        "subtitle": "આજે થોડી practice વધારે",
+        "cta_label": "Continue Practice",
+        "cta_url": "/practice",
+        "tone": "blue",
+    }
+
+
 # ---------------------- Routes: Bookmarks ----------------------
 @api_router.post("/bookmarks")
 async def add_bookmark(req: BookmarkReq, user: User = Depends(require_user)):

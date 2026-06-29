@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,10 +19,11 @@ const ALL = "__all__";
 export default function PracticeStart() {
   usePageTitle("Practice");
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { user } = useAuth();
   const [filters, setFilters] = useState({ exams: [], years: [], subjects: [] });
   const [exam, setExam] = useState(ALL);
-  const [subject, setSubject] = useState(ALL);
+  const [subject, setSubject] = useState(params.get("subject") || ALL);
   const [count, setCount] = useState("10");
   const [aiTopic, setAiTopic] = useState("");
   const [aiSubject, setAiSubject] = useState("ઇતિહાસ");

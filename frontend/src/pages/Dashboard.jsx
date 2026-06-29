@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Bookmark, Target, Trophy, ListChecks, Flame, MailWarning, X } from "lucide-react";
+import { Bookmark, Target, Trophy, ListChecks, Flame, MailWarning, X, ArrowRight, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [attempts, setAttempts] = useState([]);
+  const [nextStep, setNextStep] = useState(null);
   const [resending, setResending] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
@@ -24,9 +25,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([api.get("/stats"), api.get("/attempts")]).then(([s, a]) => {
+    Promise.all([api.get("/stats"), api.get("/attempts"), api.get("/me/next-step")]).then(([s, a, n]) => {
       setStats(s.data);
       setAttempts(a.data);
+      setNextStep(n.data);
     });
   }, [user]);
 
@@ -124,6 +126,11 @@ export default function Dashboard() {
           <span className="text-sm font-medium">Daily Question</span>
         </Link>
       </div>
+
+      {/* Smart Next-Step suggestion */}
+      {nextStep && (
+        <NextStepCard step={nextStep} />
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         {cards.map((c) => (
@@ -227,6 +234,38 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function NextStepCard({ step }) {
+  const tones = {
+    blue: "from-blue-50 to-blue-100/40 border-blue-200 text-blue-900",
+    amber: "from-amber-50 to-rose-50 border-amber-200 text-amber-900",
+    emerald: "from-emerald-50 to-emerald-100/40 border-emerald-200 text-emerald-900",
+  };
+  const tone = tones[step.tone] || tones.blue;
+  return (
+    <div
+      className={`mb-8 bg-gradient-to-br ${tone} border rounded-lg p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 page-enter`}
+      data-testid="next-step-card"
+    >
+      <div className="h-10 w-10 rounded-md bg-white/80 flex items-center justify-center shrink-0">
+        <Lightbulb className="h-5 w-5 text-amber-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs uppercase tracking-wider opacity-70 font-semibold">Next step for you</p>
+        <p className="text-lg sm:text-xl font-semibold mt-1">{step.title}</p>
+        <p className="text-sm opacity-80 mt-0.5 font-gujarati">{step.subtitle}</p>
+      </div>
+      <Link
+        to={step.cta_url}
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-gray-900 hover:bg-black text-white text-sm font-medium transition-colors btn-lift shrink-0"
+        data-testid="next-step-cta"
+      >
+        {step.cta_label}
+        <ArrowRight className="h-4 w-4" />
+      </Link>
     </div>
   );
 }
