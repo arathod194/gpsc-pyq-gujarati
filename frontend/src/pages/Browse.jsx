@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 import usePageTitle from "@/lib/usePageTitle";
+import { QuestionCardSkeleton } from "@/components/Skeletons";
 import {
   Select,
   SelectContent,
@@ -130,7 +131,11 @@ export default function Browse() {
 
       {/* Results */}
       {loading ? (
-        <div className="text-center py-16 text-gray-500">Loading…</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="browse-skeleton">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <QuestionCardSkeleton key={i} />
+          ))}
+        </div>
       ) : questions.length === 0 ? (
         <div className="text-center py-16 border border-dashed border-gray-300 rounded-lg">
           <p className="text-gray-600">કોઈ પ્રશ્નો મળ્યા નથી</p>

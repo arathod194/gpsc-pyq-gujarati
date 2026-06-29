@@ -6,8 +6,11 @@ import { Bookmark, Target, Trophy, ListChecks, Flame, MailWarning, X } from "luc
 import { Button } from "@/components/ui/button";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
 import { toast } from "sonner";
+import { StatCardSkeleton, ListRowSkeleton, Skeleton } from "@/components/Skeletons";
+import usePageTitle from "@/lib/usePageTitle";
 
 export default function Dashboard() {
+  usePageTitle("Dashboard");
   const { user, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
@@ -44,7 +47,34 @@ export default function Dashboard() {
     }
   };
 
-  if (!user || !stats) return <div className="text-center py-20 text-gray-500">Loading…</div>;
+  if (!user || !stats) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12" data-testid="dashboard-skeleton">
+        <Skeleton className="h-4 w-28 mb-2" />
+        <Skeleton className="h-10 w-64 mb-8" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+          <Skeleton className="lg:col-span-3 h-80" />
+          <div className="lg:col-span-2 space-y-4">
+            <Skeleton className="h-40" />
+            <Skeleton className="h-20" />
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <Skeleton className="h-5 w-32" />
+          </div>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <ListRowSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const cards = [
     { icon: ListChecks, label: "Attempts", value: stats.total_attempts, accent: "blue" },

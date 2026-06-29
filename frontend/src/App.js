@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
@@ -7,27 +7,46 @@ import { AuthProvider } from "@/lib/auth";
 import Header from "@/components/Header";
 import StickyAd from "@/components/StickyAd";
 import InstallPrompt from "@/components/InstallPrompt";
+
+// Landing is eagerly imported (above-the-fold, primary SEO target)
 import Landing from "@/pages/Landing";
-import Browse from "@/pages/Browse";
-import PracticeStart from "@/pages/PracticeStart";
-import PracticeRun from "@/pages/PracticeRun";
-import MockTest from "@/pages/MockTest";
-import Dashboard from "@/pages/Dashboard";
-import Bookmarks from "@/pages/Bookmarks";
-import Login from "@/pages/Login";
-import Signup from "@/pages/Signup";
-import Admin from "@/pages/Admin";
-import QuestionDetail from "@/pages/QuestionDetail";
-import Daily from "@/pages/Daily";
-import Leaderboard from "@/pages/Leaderboard";
-import VerifyEmail from "@/pages/VerifyEmail";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import About from "@/pages/About";
-import Contact from "@/pages/Contact";
-import Privacy from "@/pages/Privacy";
-import Terms from "@/pages/Terms";
-import NotFound from "@/pages/NotFound";
+
+// All other routes are code-split for faster initial paint
+const Browse = lazy(() => import("@/pages/Browse"));
+const PracticeStart = lazy(() => import("@/pages/PracticeStart"));
+const PracticeRun = lazy(() => import("@/pages/PracticeRun"));
+const MockTest = lazy(() => import("@/pages/MockTest"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Bookmarks = lazy(() => import("@/pages/Bookmarks"));
+const Login = lazy(() => import("@/pages/Login"));
+const Signup = lazy(() => import("@/pages/Signup"));
+const Admin = lazy(() => import("@/pages/Admin"));
+const QuestionDetail = lazy(() => import("@/pages/QuestionDetail"));
+const Daily = lazy(() => import("@/pages/Daily"));
+const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
+const VerifyEmail = lazy(() => import("@/pages/VerifyEmail"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const About = lazy(() => import("@/pages/About"));
+const Contact = lazy(() => import("@/pages/Contact"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const Terms = lazy(() => import("@/pages/Terms"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
+
+function RouteFallback() {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 bg-gray-200 rounded w-1/3" />
+        <div className="h-4 bg-gray-100 rounded w-2/3" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <div className="h-32 bg-gray-100 rounded-lg" />
+          <div className="h-32 bg-gray-100 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -36,29 +55,31 @@ export default function App() {
         <div className="App min-h-screen flex flex-col">
           <Header />
           <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/browse" element={<Browse />} />
-              <Route path="/practice" element={<PracticeStart />} />
-              <Route path="/practice/run" element={<PracticeRun />} />
-              <Route path="/mock" element={<MockTest />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/bookmarks" element={<Bookmarks />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/question/:id" element={<QuestionDetail />} />
-              <Route path="/daily" element={<Daily />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/browse" element={<Browse />} />
+                <Route path="/practice" element={<PracticeStart />} />
+                <Route path="/practice/run" element={<PracticeRun />} />
+                <Route path="/mock" element={<MockTest />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/bookmarks" element={<Bookmarks />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/question/:id" element={<QuestionDetail />} />
+                <Route path="/daily" element={<Daily />} />
+                <Route path="/leaderboard" element={<Leaderboard />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </main>
           <footer className="border-t border-gray-200 bg-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
