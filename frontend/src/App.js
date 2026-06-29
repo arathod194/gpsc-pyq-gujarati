@@ -1,56 +1,52 @@
-import { useEffect } from "react";
+import React from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
-import { HOME } from "@/constants/testIds";
+import { Toaster } from "@/components/ui/sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { AuthProvider } from "@/lib/auth";
+import Header from "@/components/Header";
+import Landing from "@/pages/Landing";
+import Browse from "@/pages/Browse";
+import PracticeStart from "@/pages/PracticeStart";
+import PracticeRun from "@/pages/PracticeRun";
+import MockTest from "@/pages/MockTest";
+import Dashboard from "@/pages/Dashboard";
+import Bookmarks from "@/pages/Bookmarks";
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
+import Admin from "@/pages/Admin";
+import QuestionDetail from "@/pages/QuestionDetail";
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
+export default function App() {
   return (
-    <div>
-      <header className="App-header">
-        <a
-          data-testid={HOME.emergentLink}
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <div className="App">
+    <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
+        <div className="App min-h-screen flex flex-col">
+          <Header />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/browse" element={<Browse />} />
+              <Route path="/practice" element={<PracticeStart />} />
+              <Route path="/practice/run" element={<PracticeRun />} />
+              <Route path="/mock" element={<MockTest />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/bookmarks" element={<Bookmarks />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/question/:id" element={<QuestionDetail />} />
+            </Routes>
+          </main>
+          <footer className="border-t border-gray-200 bg-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs text-gray-500">© 2026 GPSC Gujarat PYQ — Free to use</p>
+              <p className="text-xs text-gray-500 font-gujarati">તૈયારી માટે best of luck!</p>
+            </div>
+          </footer>
+        </div>
+        <Toaster position="top-center" richColors />
       </BrowserRouter>
-    </div>
+    </AuthProvider>
   );
 }
-
-export default App;
