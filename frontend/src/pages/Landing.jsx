@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Timer, BookOpen, Award, Brain, Bookmark } from "lucide-react";
+import AdSlot from "@/components/AdSlot";
 
 const HERO_IMG = "https://images.pexels.com/photos/8085257/pexels-photo-8085257.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940";
 
@@ -148,6 +149,7 @@ export default function Landing() {
 
       {/* CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <AdSlot slot={process.env.REACT_APP_ADSENSE_SLOT_LEADERBOARD} format="auto" className="mb-12" />
         <div className="bg-gray-900 rounded-lg px-8 py-12 sm:p-16 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div>
             <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">

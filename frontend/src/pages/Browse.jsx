@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
+import AdSlot from "@/components/AdSlot";
 import {
   Select,
   SelectContent,
@@ -135,22 +136,28 @@ export default function Browse() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {questions.map((qst, i) => (
-            <div
-              key={qst.id}
-              onClick={() => navigate(`/question/${qst.id}`)}
-              className="bg-white border border-gray-200 rounded-lg p-5 cursor-pointer hover:shadow-sm hover:border-gray-300 transition-all"
-              data-testid={`question-card-${qst.id}`}
-            >
-              <div className="flex items-center gap-2 text-xs mb-3">
-                <span className="font-mono-stat text-gray-500">Q{String(i + 1).padStart(2, "0")}</span>
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">{qst.exam}</span>
-                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded font-mono-stat">{qst.year}</span>
+            <React.Fragment key={qst.id}>
+              <div
+                onClick={() => navigate(`/question/${qst.id}`)}
+                className="bg-white border border-gray-200 rounded-lg p-5 cursor-pointer hover:shadow-sm hover:border-gray-300 transition-all"
+                data-testid={`question-card-${qst.id}`}
+              >
+                <div className="flex items-center gap-2 text-xs mb-3">
+                  <span className="font-mono-stat text-gray-500">Q{String(i + 1).padStart(2, "0")}</span>
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">{qst.exam}</span>
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded font-mono-stat">{qst.year}</span>
+                </div>
+                <p className="font-gujarati text-base text-gray-900 leading-relaxed line-clamp-3">
+                  {qst.question_text}
+                </p>
+                <p className="mt-3 text-xs text-gray-500 font-gujarati">{qst.subject} {qst.topic && `· ${qst.topic}`}</p>
               </div>
-              <p className="font-gujarati text-base text-gray-900 leading-relaxed line-clamp-3">
-                {qst.question_text}
-              </p>
-              <p className="mt-3 text-xs text-gray-500 font-gujarati">{qst.subject} {qst.topic && `· ${qst.topic}`}</p>
-            </div>
+              {(i + 1) % 6 === 0 && i !== questions.length - 1 && (
+                <div className="md:col-span-2">
+                  <AdSlot slot={process.env.REACT_APP_ADSENSE_SLOT_INLINE} format="auto" />
+                </div>
+              )}
+            </React.Fragment>
           ))}
         </div>
       )}

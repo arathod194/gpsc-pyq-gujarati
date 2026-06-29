@@ -5,6 +5,7 @@ import MCQCard from "@/components/MCQCard";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import AdSlot from "@/components/AdSlot";
 
 export default function PracticeRun() {
   const navigate = useNavigate();
@@ -118,6 +119,11 @@ export default function PracticeRun() {
         bookmarked={bookmarkSet.has(current.id) && !isAi}
         onBookmarkToggle={() => toggleBookmark(current.id)}
       />
+
+      {/* Inline ad shown every 3rd revealed question to avoid clutter */}
+      {revealed[current.id] && (idx + 1) % 3 === 0 && (
+        <AdSlot slot={process.env.REACT_APP_ADSENSE_SLOT_INLINE} format="auto" />
+      )}
 
       <div className="flex items-center justify-between mt-6">
         <Button

@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Flame, CheckCircle2, XCircle, Trophy, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import AdSlot from "@/components/AdSlot";
 
 export default function Daily() {
   const navigate = useNavigate();
@@ -154,6 +155,8 @@ export default function Daily() {
           </div>
         )}
       </div>
+
+      <AdSlot slot={process.env.REACT_APP_ADSENSE_SLOT_INLINE} format="auto" />
     </div>
   );
 }
