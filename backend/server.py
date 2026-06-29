@@ -1188,7 +1188,7 @@ async def sitemap():
     from fastapi.responses import Response
     base = FRONTEND_URL.rstrip("/") if FRONTEND_URL else ""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    static_routes = ["/", "/browse", "/practice", "/mock", "/daily", "/leaderboard", "/login", "/signup"]
+    static_routes = ["/", "/browse", "/practice", "/mock", "/daily", "/leaderboard", "/login", "/signup", "/about", "/contact", "/privacy", "/terms"]
     urls = []
     for r in static_routes:
         urls.append(
