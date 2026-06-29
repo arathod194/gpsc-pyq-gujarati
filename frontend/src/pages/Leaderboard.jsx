@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { Trophy, Flame, Calendar } from "lucide-react";
+import AdSlot from "@/components/AdSlot";
 
 const TABS = [
   { value: "mock", label: "Best Mock", icon: Trophy },
@@ -75,6 +76,8 @@ export default function Leaderboard() {
           ))}
         </div>
       )}
+
+      <AdSlot slot={process.env.REACT_APP_ADSENSE_SLOT_LEADERBOARD} format="auto" />
     </div>
   );
 }

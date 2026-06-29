@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 import { AuthProvider } from "@/lib/auth";
 import Header from "@/components/Header";
+import StickyAd from "@/components/StickyAd";
 import Landing from "@/pages/Landing";
 import Browse from "@/pages/Browse";
 import PracticeStart from "@/pages/PracticeStart";
@@ -54,6 +55,7 @@ export default function App() {
               <p className="text-xs text-gray-500 font-gujarati">તૈયારી માટે best of luck!</p>
             </div>
           </footer>
+          <StickyAd />
         </div>
         <Toaster position="top-center" richColors />
       </BrowserRouter>
