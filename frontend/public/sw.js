@@ -1,4 +1,4 @@
-/* GPSC PYQ — Service Worker
+/* GPSC Track — Service Worker
  * Strategy:
  *   - Network-first for HTML & API → fresh data when online, fallback to cache offline
  *   - Cache-first for static assets (JS, CSS, fonts, images)

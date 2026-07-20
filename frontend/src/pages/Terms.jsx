@@ -13,7 +13,7 @@ export default function Terms() {
       <div className="prose prose-sm max-w-none space-y-6 text-gray-700 leading-relaxed">
         <section>
           <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-2">1. Acceptance</h2>
-          <p>By using GPSC Gujarat PYQ, you agree to these Terms. If you do not agree, please do not use the service.</p>
+          <p>By using GPSC Track, you agree to these Terms. If you do not agree, please do not use the service.</p>
         </section>
 
         <section>

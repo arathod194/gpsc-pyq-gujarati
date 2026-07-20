@@ -57,7 +57,7 @@ export default function Header() {
                   <div className="h-8 w-8 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
                     G
                   </div>
-                  <span className="font-semibold tracking-tight text-gray-900">GPSC PYQ</span>
+                  <span className="font-semibold tracking-tight text-gray-900">GPSC Track</span>
                   <span className="text-xs text-gray-500">ગુજરાત</span>
                 </SheetTitle>
               </SheetHeader>
@@ -115,7 +115,7 @@ export default function Header() {
             <div className="h-8 w-8 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
               G
             </div>
-            <span className="font-semibold tracking-tight text-gray-900">GPSC PYQ</span>
+            <span className="font-semibold tracking-tight text-gray-900">GPSC Track</span>
             <span className="text-xs text-gray-500 hidden sm:inline">ગુજરાત</span>
           </Link>
         </div>

@@ -44,7 +44,7 @@ export default function Contact() {
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <Mail className="h-5 w-5 text-blue-600 mb-3" />
           <p className="text-xs text-gray-500 uppercase tracking-wider">Email</p>
-          <a href="mailto:hello@gpscpyq.in" className="text-sm font-medium text-gray-900 mt-1 inline-block hover:underline">hello@gpscpyq.in</a>
+          <a href="mailto:hello@gpsctrack.com" className="text-sm font-medium text-gray-900 mt-1 inline-block hover:underline">hello@gpsctrack.com</a>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <MessageSquare className="h-5 w-5 text-amber-600 mb-3" />

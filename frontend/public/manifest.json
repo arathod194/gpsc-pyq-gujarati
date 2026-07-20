@@ -1,6 +1,6 @@
 {
-  "name": "GPSC Gujarat PYQ",
-  "short_name": "GPSC PYQ",
+  "name": "GPSC Track",
+  "short_name": "GPSC Track",
   "description": "GPSC previous year questions, mock tests & AI explanations in Gujarati",
   "start_url": "/",
   "display": "standalone",

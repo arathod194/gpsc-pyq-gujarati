@@ -57,7 +57,7 @@ const accentBg = {
 };
 
 export default function Landing() {
-  usePageTitle("GPSC Previous Year Questions in Gujarati", { suffix: false });
+  usePageTitle("GPSC Track — Gujarat GPSC Previous Year Questions in Gujarati", { suffix: false });
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [pstats, setPstats] = useState(null);

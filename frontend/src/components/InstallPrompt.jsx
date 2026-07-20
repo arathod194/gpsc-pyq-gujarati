@@ -97,7 +97,7 @@ export default function InstallPrompt() {
           G
         </div>
         <div className="pr-6">
-          <p className="text-sm font-semibold text-gray-900">Install GPSC PYQ</p>
+          <p className="text-sm font-semibold text-gray-900">Install GPSC Track</p>
           <p className="text-xs text-gray-600 mt-1 font-gujarati leading-relaxed">
             Home screen પર add કરો — fast, offline access સાથે.
           </p>

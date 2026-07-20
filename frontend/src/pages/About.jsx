@@ -8,7 +8,7 @@ export default function About() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 page-enter">
       <Link to="/" className="text-sm text-blue-600 hover:underline">← Home</Link>
-      <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 mt-4 mb-3">About GPSC Gujarat PYQ</h1>
+      <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 mt-4 mb-3">About GPSC Track</h1>
       <p className="text-base text-gray-600 leading-relaxed font-gujarati">
         ગુજરાત જાહેર સેવા આયોગ (GPSC) ની તૈયારી માટે વર્ષોના previous year questions એક જ જગ્યાએ, ગુજરાતી ભાષામાં, AI-powered explanations સાથે — સંપૂર્ણ free.
       </p>
@@ -30,7 +30,7 @@ export default function About() {
       <section className="mt-10">
         <h2 className="text-2xl font-semibold tracking-tight text-gray-900 mb-3">Disclaimer</h2>
         <p className="text-gray-700 leading-relaxed text-sm">
-          GPSC Gujarat PYQ is an <b>independent educational platform</b>. We are <b>not affiliated</b> with the Gujarat Public Service Commission or any government body. Question sources are public GPSC papers. Always verify against official sources before exam decisions.
+          GPSC Track is an <b>independent educational platform</b>. We are <b>not affiliated</b> with the Gujarat Public Service Commission or any government body. Question sources are public GPSC papers. Always verify against official sources before exam decisions.
         </p>
       </section>
 

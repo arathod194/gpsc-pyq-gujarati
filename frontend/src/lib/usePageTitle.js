@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
-const DEFAULT_TITLE = "GPSC Gujarat PYQ — Previous Year Questions in Gujarati";
-const SUFFIX = " · GPSC Gujarat PYQ";
+const DEFAULT_TITLE = "GPSC Track — Previous Year Questions in Gujarati";
+const SUFFIX = " · GPSC Track";
 
 /**
  * Sets document.title for the current route. Restores default on unmount.

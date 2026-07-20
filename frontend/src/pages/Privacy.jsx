@@ -14,7 +14,7 @@ export default function Privacy() {
         <section>
           <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-2">1. Introduction</h2>
           <p>
-            GPSC Gujarat PYQ (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates this website to help GPSC aspirants
+            GPSC Track (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates this website to help GPSC aspirants
             practice previous year questions. This Privacy Policy explains what data we collect, how we use it, and your rights.
           </p>
         </section>

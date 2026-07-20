@@ -19,7 +19,7 @@ export default function Signup() {
     setLoading(true);
     try {
       await signup(name, email, pw);
-      toast.success("Welcome to GPSC PYQ!");
+      toast.success("Welcome to GPSC Track!");
       navigate("/dashboard");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Signup failed");

@@ -87,7 +87,7 @@ export default function App() {
                 <div className="col-span-2 md:col-span-1">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="h-7 w-7 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs">G</div>
-                    <span className="font-semibold tracking-tight text-gray-900">GPSC PYQ</span>
+                    <span className="font-semibold tracking-tight text-gray-900">GPSC Track</span>
                   </div>
                   <p className="text-xs text-gray-500 font-gujarati leading-relaxed">
                     GPSC તૈયારી — free, ગુજરાતી, AI-powered.
@@ -119,7 +119,7 @@ export default function App() {
                 </div>
               </div>
               <div className="pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <p className="text-xs text-gray-500">© 2026 GPSC Gujarat PYQ. Free educational resource — not affiliated with GPSC.</p>
+                <p className="text-xs text-gray-500">© 2026 GPSC Track. Free educational resource — not affiliated with GPSC.</p>
                 <p className="text-xs text-gray-500 font-gujarati">તૈયારી માટે best of luck!</p>
               </div>
             </div>
