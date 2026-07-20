@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Plus, ShieldCheck, Upload, FileJson, FileText } from "lucide-react";
+import { Trash2, Plus, ShieldCheck, Upload, FileJson, FileText, Inbox, BarChart3, Mail, Users, BookOpen, Bookmark } from "lucide-react";
 import { toast } from "sonner";
 
 const EXAMS = ["GPSC Class 1-2", "Dy.SO/Nayab Mamlatdar", "PI", "GPSC Class 3"];
@@ -34,7 +34,10 @@ const emptyForm = () => ({
 export default function Admin() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const [tab, setTab] = useState("questions");
   const [questions, setQuestions] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [overview, setOverview] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
 
@@ -43,10 +46,30 @@ export default function Admin() {
   }, [user, loading, navigate]);
 
   const refresh = () => api.get("/questions", { params: { limit: 500 } }).then((r) => setQuestions(r.data));
+  const loadMessages = () => api.get("/admin/messages").then((r) => setMessages(r.data)).catch(() => {});
+  const loadOverview = () => api.get("/admin/overview").then((r) => setOverview(r.data)).catch(() => {});
 
   useEffect(() => {
-    if (user?.role === "admin") refresh();
+    if (user?.role === "admin") {
+      refresh();
+      loadMessages();
+      loadOverview();
+    }
   }, [user]);
+
+  const markRead = async (id) => {
+    await api.post(`/admin/messages/${id}/read`);
+    loadMessages();
+    loadOverview();
+  };
+
+  const deleteMessage = async (id) => {
+    if (!window.confirm("Delete this message?")) return;
+    await api.delete(`/admin/messages/${id}`);
+    toast.success("Message deleted");
+    loadMessages();
+    loadOverview();
+  };
 
   const save = async () => {
     if (!form.question_text.trim() || form.options.some((o) => !o.text.trim())) {
@@ -113,16 +136,45 @@ export default function Admin() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 page-enter">
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-6">
         <div className="h-10 w-10 rounded-md bg-blue-50 text-blue-700 flex items-center justify-center">
           <ShieldCheck className="h-5 w-5" />
         </div>
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Admin Panel</h1>
-          <p className="text-sm text-gray-500">Manage questions</p>
+          <p className="text-sm text-gray-500">Manage questions, messages & data</p>
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-8 border-b border-gray-200">
+        {[
+          { id: "questions", label: "Questions", icon: BookOpen },
+          { id: "messages", label: "Messages", icon: Inbox, badge: overview?.unread_messages || 0 },
+          { id: "overview", label: "Data Overview", icon: BarChart3 },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            data-testid={`admin-tab-${t.id}`}
+            className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors -mb-px border-b-2 ${
+              tab === t.id
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <t.icon className="h-4 w-4" />
+            {t.label}
+            {t.badge > 0 && (
+              <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center" data-testid="unread-badge">
+                {t.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === "questions" && (
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Form + Bulk Import */}
         <div className="lg:col-span-2 space-y-6">
@@ -266,6 +318,96 @@ export default function Admin() {
           </div>
         </div>
       </div>
+      )}
+
+      {tab === "messages" && (
+      <div className="bg-white border border-gray-200 rounded-lg" data-testid="admin-messages-panel">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+            <Mail className="h-4 w-4" /> Contact Messages
+          </h2>
+          <span className="text-xs text-gray-500 font-mono-stat">{messages.length} total</span>
+        </div>
+        {messages.length === 0 ? (
+          <div className="px-6 py-16 text-center text-sm text-gray-500" data-testid="messages-empty">
+            No messages yet. Contact form submissions will appear here.
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 max-h-[75vh] overflow-y-auto">
+            {messages.map((m) => (
+              <div key={m.id} className={`px-6 py-4 ${!m.read ? "bg-blue-50/40" : ""}`} data-testid={`message-${m.id}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-gray-900">{m.name}</span>
+                      {!m.read && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-600 text-white font-semibold">NEW</span>}
+                      <a href={`mailto:${m.email}`} className="text-xs text-blue-600 hover:underline">{m.email}</a>
+                    </div>
+                    <p className="text-sm text-gray-700 mt-1.5 whitespace-pre-wrap">{m.message}</p>
+                    <p className="text-xs text-gray-400 mt-2 font-mono-stat">{new Date(m.created_at).toLocaleString()}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    {!m.read && (
+                      <button onClick={() => markRead(m.id)} className="text-xs text-blue-600 hover:underline" data-testid={`message-read-${m.id}`}>
+                        Mark read
+                      </button>
+                    )}
+                    <button onClick={() => deleteMessage(m.id)} className="text-gray-400 hover:text-red-600 transition-colors" data-testid={`message-delete-${m.id}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      )}
+
+      {tab === "overview" && (
+      <div data-testid="admin-overview-panel">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[
+            { label: "Questions", value: overview?.total_questions, icon: BookOpen, color: "text-blue-600 bg-blue-50" },
+            { label: "Users", value: overview?.total_users, icon: Users, color: "text-emerald-600 bg-emerald-50" },
+            { label: "Attempts", value: overview?.total_attempts, icon: BarChart3, color: "text-amber-600 bg-amber-50" },
+            { label: "Bookmarks", value: overview?.total_bookmarks, icon: Bookmark, color: "text-purple-600 bg-purple-50" },
+            { label: "Messages", value: overview?.total_messages, icon: Mail, color: "text-rose-600 bg-rose-50" },
+          ].map((s) => (
+            <div key={s.label} className="bg-white border border-gray-200 rounded-lg p-5" data-testid={`stat-${s.label.toLowerCase()}`}>
+              <div className={`h-9 w-9 rounded-md flex items-center justify-center mb-3 ${s.color}`}>
+                <s.icon className="h-4 w-4" />
+              </div>
+              <p className="text-2xl font-semibold text-gray-900 font-mono-stat">{s.value ?? "—"}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg mt-6">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900">Questions by subject</h2>
+          </div>
+          <div className="p-6 space-y-3">
+            {(overview?.subjects || []).map((s) => {
+              const max = Math.max(...(overview?.subjects || []).map((x) => x.count), 1);
+              return (
+                <div key={s.subject} className="flex items-center gap-3" data-testid={`subject-bar-${s.subject}`}>
+                  <span className="text-sm text-gray-700 font-gujarati w-32 shrink-0 truncate">{s.subject}</span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                    <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${(s.count / max) * 100}%` }} />
+                  </div>
+                  <span className="text-xs text-gray-500 font-mono-stat w-8 text-right">{s.count}</span>
+                </div>
+              );
+            })}
+            {(!overview?.subjects || overview.subjects.length === 0) && (
+              <p className="text-sm text-gray-500">No questions yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+      )}
     </div>
   );
 }

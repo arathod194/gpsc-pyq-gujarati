@@ -3,6 +3,13 @@
 ## Original Problem Statement
 "I want to generate website for gujrat gpsc previous year question"
 
+## Contact + Admin Data (Feb 2026)
+- **Contact form now works end-to-end.** POST /api/contact (public) saves to `db.contact_messages` AND emails the site owner via Emergent managed email proxy (httpx → integrations.emergentagent.com/api/v1/email/send).
+- Owner notification email: `CONTACT_NOTIFY_EMAIL=amitrathod194@hotmail.com` (in backend/.env). Sender display name: `EMAIL_FROM_NAME=GPSC Gujarat PYQ`. Auth key: `EMERGENT_EMAIL_KEY` in .env.
+- **Admin panel now has 3 tabs**: Questions (existing), Messages (list/mark-read/delete + unread badge), Data Overview (counts for questions/users/attempts/bookmarks/messages + questions-by-subject chart).
+- New backend routes: GET /api/admin/messages, POST /api/admin/messages/{id}/read, DELETE /api/admin/messages/{id}, GET /api/admin/overview.
+- Note: legacy auth emails (verify/reset) still use old Resend path (dev-mock, no key). New contact email uses the working proxy. Could migrate auth emails to the proxy later if real delivery is wanted.
+
 ## Decisions
 - Content language: Gujarati only
 - Accounts: Public browsing + signup for progress/bookmarks/streak

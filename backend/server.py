@@ -13,6 +13,7 @@ from typing import List, Optional, Annotated
 import bcrypt
 import jwt
 import resend
+import httpx
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -35,6 +36,12 @@ EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
+
+# Emergent managed email proxy (constant — never read from env so it survives deploy)
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMERGENT_EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "GPSC Gujarat PYQ")
+CONTACT_NOTIFY_EMAIL = os.environ.get("CONTACT_NOTIFY_EMAIL", "")
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -188,6 +195,21 @@ class BulkImportReq(BaseModel):
     questions: List[QuestionCreate]
 
 
+class ContactMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: EmailStr
+    message: str
+    read: bool = False
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class ContactCreate(BaseModel):
+    name: str
+    email: EmailStr
+    message: str
+
+
 def user_to_public(u: User) -> UserPublic:
     return UserPublic(
         id=u.id,
@@ -267,6 +289,35 @@ async def _send_email(to_email: str, subject: str, html: str) -> Optional[str]:
         return res.get("id") if isinstance(res, dict) else None
     except Exception:
         logger.exception("Resend send failed")
+        return None
+
+
+async def _send_email_proxy(
+    to_email: str, subject: str, html: str, reply_to: Optional[str] = None
+) -> Optional[str]:
+    """Send email via Emergent managed email proxy. Returns email id or None on failure."""
+    if not EMERGENT_EMAIL_KEY:
+        logger.info("[email-proxy-mock] to=%s subject=%s", to_email, subject)
+        return None
+    payload = {
+        "to": [to_email],
+        "subject": subject,
+        "html": html,
+        "from_name": EMAIL_FROM_NAME,
+    }
+    if reply_to:
+        payload["contact_email"] = reply_to
+    try:
+        async with httpx.AsyncClient(timeout=30) as http_client:
+            resp = await http_client.post(
+                f"{EMAIL_BASE_URL}/api/v1/email/send",
+                headers={"X-Email-Key": EMERGENT_EMAIL_KEY},
+                json=payload,
+            )
+        resp.raise_for_status()
+        return resp.json().get("id")
+    except Exception as e:
+        logger.error("Email proxy send failed: %s", str(e))
         return None
 
 
@@ -1103,6 +1154,92 @@ async def import_csv(file: UploadFile = File(...), _: User = Depends(require_adm
         except Exception as e:
             errors.append({"row": i + 2, "error": str(e)})
     return {"inserted": inserted, "errors": errors}
+
+
+# ---------------------- Routes: Contact ----------------------
+@api_router.post("/contact")
+async def submit_contact(req: ContactCreate):
+    """Public: store a contact message and notify the site owner by email."""
+    name = req.name.strip()
+    email = req.email.strip()
+    message = req.message.strip()
+    if not name or not message:
+        raise HTTPException(status_code=400, detail="Name and message are required")
+    msg = ContactMessage(name=name, email=email, message=message)
+    await db.contact_messages.insert_one(msg.model_dump())
+
+    if CONTACT_NOTIFY_EMAIL:
+        safe_msg = message.replace("\n", "<br/>")
+        html = f"""
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-family: Arial, sans-serif; background:#F9FAFB; padding:32px 0;">
+          <tr><td align="center">
+            <table width="560" cellpadding="0" cellspacing="0" border="0" style="background:#fff; border:1px solid #E5E7EB; border-radius:8px; padding:32px;">
+              <tr><td style="color:#111827; font-size:20px; font-weight:600;">New contact message</td></tr>
+              <tr><td style="color:#4B5563; font-size:14px; padding-top:16px;"><strong>Name:</strong> {name}</td></tr>
+              <tr><td style="color:#4B5563; font-size:14px; padding-top:4px;"><strong>Email:</strong> {email}</td></tr>
+              <tr><td style="color:#111827; font-size:15px; line-height:1.6; padding-top:16px; border-top:1px solid #E5E7EB; margin-top:8px;">{safe_msg}</td></tr>
+              <tr><td style="color:#9CA3AF; font-size:12px; padding-top:24px;">— GPSC Gujarat PYQ contact form</td></tr>
+            </table>
+          </td></tr>
+        </table>
+        """
+        await _send_email_proxy(
+            CONTACT_NOTIFY_EMAIL,
+            f"New contact message from {name}",
+            html,
+            reply_to=email,
+        )
+    return {"ok": True}
+
+
+# ---------------------- Routes: Admin ----------------------
+@api_router.get("/admin/messages")
+async def admin_messages(_: User = Depends(require_admin)):
+    """Admin: list all contact messages, newest first."""
+    docs = await db.contact_messages.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return docs
+
+
+@api_router.post("/admin/messages/{mid}/read")
+async def admin_mark_read(mid: str, _: User = Depends(require_admin)):
+    await db.contact_messages.update_one({"id": mid}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
+@api_router.delete("/admin/messages/{mid}")
+async def admin_delete_message(mid: str, _: User = Depends(require_admin)):
+    await db.contact_messages.delete_one({"id": mid})
+    return {"ok": True}
+
+
+@api_router.get("/admin/overview")
+async def admin_overview(_: User = Depends(require_admin)):
+    """Admin: high-level data counts for the app."""
+    total_questions = await db.questions.count_documents({})
+    total_users = await db.users.count_documents({"role": "user"})
+    total_attempts = await db.attempts.count_documents({})
+    total_bookmarks = await db.bookmarks.count_documents({})
+    total_messages = await db.contact_messages.count_documents({})
+    unread_messages = await db.contact_messages.count_documents({"read": False})
+    # subject breakdown of the question bank
+    subj_pipeline = [
+        {"$group": {"_id": "$subject", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+    ]
+    subjects = [
+        {"subject": d["_id"], "count": d["count"]}
+        async for d in db.questions.aggregate(subj_pipeline)
+    ]
+    return {
+        "total_questions": total_questions,
+        "total_users": total_users,
+        "total_attempts": total_attempts,
+        "total_bookmarks": total_bookmarks,
+        "total_messages": total_messages,
+        "unread_messages": unread_messages,
+        "subjects": subjects,
+    }
+
 
 
 # ---------------------- Seed ----------------------
