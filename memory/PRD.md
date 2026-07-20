@@ -12,6 +12,10 @@
 - Monetization: AdSense (no key yet — placeholders ready)
 - Admin: admin@gpscpyq.in / Admin@123
 
+## Resolved (Feb 2026)
+- **Admin panel "not visible" issue** — RESOLVED. Not a bug. Root cause: user was logged in with a personal (role="user") account, not the admin account. Admin nav only shows for admin role. Verified full admin login → /admin flow works on preview via Playwright. User confirmed working.
+- Note for future testing: in the screenshot tool's async context, ALWAYS `await` page.* calls; un-awaited calls return truthy coroutines and give false positives.
+
 ## Where We Left Off (last session)
 - App is **deploy-ready** (deployment_agent verified PASS)
 - All major features built, tested, polished
